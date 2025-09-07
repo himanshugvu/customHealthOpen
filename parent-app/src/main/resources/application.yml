@@ -1,0 +1,49 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: parent-app
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/demo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+demo:
+  kafka:
+    enabled: false
+    bootstrapServers: ${KAFKA_BOOTSTRAP:localhost:9092}
+  external:
+    url: ${EXTERNAL_URL:http://localhost:8090/status/200}
+
+app:
+  health:
+    enabled: true
+    startupLog: true
+    db:
+      enabled: false
+    mongo:
+      enabled: true
+    kafka:
+      enabled: true
+      adminClientBean: kafkaAdminClient
+    external:
+      services:
+        - name: httpbin
+          enabled: true
+          restClientBean: myRestClient
+          urlBean: externalServiceUrl
+    endpoints:
+      enabled: true
+      restClientBean: myRestClient
+      probeBaseUrl: http://localhost:8089
+      probePaths:
+        - /demo/endpoints
