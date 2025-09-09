@@ -18,19 +18,23 @@ public class KafkaHealthIndicator implements HealthIndicator {
         try {
             var desc = adminClient.describeCluster();
             var nodes = desc.nodes().get();
+            String clusterId = null;
+            try { clusterId = desc.clusterId().get(); } catch (Exception ignore) { }
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
-                    .withDetail("latencyMs", ms)
                     .withDetail("component", "kafka")
                     .withDetail("type", "kafka")
+                    .withDetail("latencyMs", ms)
                     .withDetail("nodeCount", nodes.size())
+                    .withDetail("clusterId", clusterId)
                     .build();
         } catch (Exception e) {
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.down()
-                    .withDetail("latencyMs", ms)
                     .withDetail("component", "kafka")
                     .withDetail("type", "kafka")
+                    .withDetail("latencyMs", ms)
+                    .withDetail("errorKind", e.getClass().getSimpleName())
                     .withDetail("error", e.getMessage())
                     .build();
         }

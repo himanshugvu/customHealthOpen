@@ -38,8 +38,14 @@ public class FlatSummaryHealthIndicator implements HealthIndicator {
             m.put("status", status);
             if (h.getDetails().containsKey("latencyMs")) m.put("latencyMs", h.getDetails().get("latencyMs"));
             if (h.getDetails().containsKey("route")) m.put("route", h.getDetails().get("route"));
+            if (h.getDetails().containsKey("method")) m.put("method", h.getDetails().get("method"));
+            if (h.getDetails().containsKey("status")) m.put("statusCode", h.getDetails().get("status"));
             if (h.getDetails().containsKey("nodeCount")) m.put("nodeCount", h.getDetails().get("nodeCount"));
+            if (h.getDetails().containsKey("clusterId")) m.put("clusterId", h.getDetails().get("clusterId"));
             if (h.getDetails().containsKey("firstCollection")) m.put("firstCollection", h.getDetails().get("firstCollection"));
+            if (h.getDetails().containsKey("poolWaitMs")) m.put("poolWaitMs", h.getDetails().get("poolWaitMs"));
+            if (h.getDetails().containsKey("queryMs")) m.put("queryMs", h.getDetails().get("queryMs"));
+            if (h.getDetails().containsKey("errorKind")) m.put("errorKind", h.getDetails().get("errorKind"));
             if (h.getDetails().containsKey("error")) m.put("error", h.getDetails().get("error"));
             items.add(m);
             anyDown |= !Status.UP.equals(h.getStatus());
@@ -56,4 +62,3 @@ public class FlatSummaryHealthIndicator implements HealthIndicator {
         return "custom";
     }
 }
-

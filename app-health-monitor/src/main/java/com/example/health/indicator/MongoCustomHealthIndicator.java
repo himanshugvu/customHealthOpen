@@ -44,6 +44,7 @@ public class MongoCustomHealthIndicator implements HealthIndicator {
                     .withDetail("component", "mongo")
                     .withDetail("type", "mongo")
                     .withDetail("latencyMs", ms)
+                    .withDetail("errorKind", e.getClass().getSimpleName())
                     .withDetail("error", e.getMessage())
                     .build();
         }

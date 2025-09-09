@@ -1,0 +1,39 @@
+# Java & Maven
+target/
+**/target/
+*.class
+*.log
+hs_err_pid*
+
+# IDEs
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+out/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build/Packaging
+*.jar
+*.war
+*.ear
+
+# Logs & temp
+logs/
+*.tmp
+tmp/
+.temp/
+
+# Docker / Env
+.env
+docker-compose.override.yml
+
+# Misc
+node_modules/
+dist/
+coverage/
