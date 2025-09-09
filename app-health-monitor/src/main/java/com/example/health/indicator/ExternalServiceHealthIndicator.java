@@ -7,66 +7,41 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.net.URI;
+import java.util.Locale;
+import java.util.Objects;
 
+/**
+ * External service health. Tries a cheap HEAD first; when a server rejects the method (405),
+ * falls back to GET, then OPTIONS. Does not mask other failures.
+ */
 public class ExternalServiceHealthIndicator implements HealthIndicator {
     private final RestClient restClient;
     private final URI uri;
     private final String name;
 
     public ExternalServiceHealthIndicator(String name, RestClient restClient, URI uri) {
-        this.name = name;
-        this.restClient = restClient;
-        this.uri = uri;
+        this.name = Objects.requireNonNull(name, "name");
+        this.restClient = Objects.requireNonNull(restClient, "restClient");
+        this.uri = Objects.requireNonNull(uri, "uri");
     }
 
     @Override
     public Health health() {
         long start = System.nanoTime();
         try {
-            // Prefer HEAD, fallback to GET then OPTIONS on 405 to accommodate strict servers
-            String methodUsed = "HEAD";
-            ResponseEntity<Void> resp;
-            try {
-                resp = restClient.head().uri(uri).retrieve().toBodilessEntity();
-            } catch (RestClientResponseException e) {
-                if (e.getStatusCode() != null && e.getStatusCode().value() == 405) {
-                    try {
-                        methodUsed = "GET";
-                        resp = restClient.get().uri(uri).retrieve().toBodilessEntity();
-                    } catch (RestClientResponseException ex) {
-                        if (ex.getStatusCode() != null && ex.getStatusCode().value() == 405) {
-                            methodUsed = "OPTIONS";
-                            resp = restClient.options().uri(uri).retrieve().toBodilessEntity();
-                        } else {
-                            throw ex;
-                        }
-                    }
-                } else {
-                    throw e;
-                }
-            }
-            long ms = (System.nanoTime() - start) / 1_000_000;
-            int code = resp.getStatusCode().value();
-            if (code >= 200 && code < 300) {
-                return Health.up()
-                        .withDetail("component", "external:" + name)
-                        .withDetail("type", "external")
-                        .withDetail("route", uri.toString())
-                        .withDetail("method", methodUsed)
-                        .withDetail("status", code)
-                        .withDetail("latencyMs", ms)
-                        .build();
-            }
-            return Health.down()
-                    .withDetail("component", "external:" + name)
+            ProbeResult result = probeWithFallback(uri);
+            long ms = elapsedMs(start);
+            boolean ok = is2xx(result.status());
+            Health.Builder b = ok ? Health.up() : Health.down();
+            return b.withDetail("component", "external:" + name)
                     .withDetail("type", "external")
                     .withDetail("route", uri.toString())
-                    .withDetail("method", methodUsed)
-                    .withDetail("status", code)
+                    .withDetail("method", result.method())
+                    .withDetail("status", result.status())
                     .withDetail("latencyMs", ms)
                     .build();
         } catch (Exception e) {
-            long ms = (System.nanoTime() - start) / 1_000_000;
+            long ms = elapsedMs(start);
             return Health.down()
                     .withDetail("component", "external:" + name)
                     .withDetail("type", "external")
@@ -77,4 +52,36 @@ public class ExternalServiceHealthIndicator implements HealthIndicator {
                     .build();
         }
     }
+
+    private ProbeResult probeWithFallback(URI uri) {
+        try {
+            return new ProbeResult("HEAD", statusOf(restClient.head().uri(uri).header("Accept", "*/*").retrieve().toBodilessEntity()));
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode() != null && e.getStatusCode().value() == 405) {
+                try {
+                    return new ProbeResult("GET", statusOf(restClient.get().uri(uri).header("Accept", "*/*").retrieve().toBodilessEntity()));
+                } catch (RestClientResponseException ex) {
+                    if (ex.getStatusCode() != null && ex.getStatusCode().value() == 405) {
+                        return new ProbeResult("OPTIONS", statusOf(restClient.options().uri(uri).retrieve().toBodilessEntity()));
+                    }
+                    throw ex;
+                }
+            }
+            throw e;
+        }
+    }
+
+    private int statusOf(ResponseEntity<Void> resp) {
+        return resp.getStatusCode().value();
+    }
+
+    private boolean is2xx(int code) {
+        return code >= 200 && code < 300;
+    }
+
+    private long elapsedMs(long startNs) {
+        return (System.nanoTime() - startNs) / 1_000_000;
+    }
+
+    private record ProbeResult(String method, int status) { }
 }
