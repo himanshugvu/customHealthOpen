@@ -29,7 +29,7 @@ public class MongoCustomHealthIndicator implements HealthIndicator {
                     : mongoTemplate.getDb();
 
             MongoIterable<String> names = db.listCollectionNames();
-            // Trigger a round trip
+            // Trigger a round trip; may be null if no collections exist
             String first = names.first();
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()

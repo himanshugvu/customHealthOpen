@@ -4,7 +4,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 
-import java.util.concurrent.TimeUnit;
 
 public class KafkaHealthIndicator implements HealthIndicator {
     private final AdminClient adminClient;
@@ -18,7 +17,7 @@ public class KafkaHealthIndicator implements HealthIndicator {
         long start = System.nanoTime();
         try {
             var desc = adminClient.describeCluster();
-            var nodes = desc.nodes().get(5, TimeUnit.SECONDS);
+            var nodes = desc.nodes().get();
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
                     .withDetail("latencyMs", ms)
