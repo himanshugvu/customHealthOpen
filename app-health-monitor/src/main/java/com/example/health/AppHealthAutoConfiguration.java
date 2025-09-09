@@ -24,6 +24,10 @@ import org.springframework.core.convert.ConversionService;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.context.ApplicationListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import java.util.concurrent.*;
+import java.util.*;
 
 import javax.sql.DataSource;
 import java.net.URI;
@@ -128,20 +132,71 @@ public class AppHealthAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(prefix = "app.health", name = "startupLog", havingValue = "true", matchIfMissing = true)
-    public org.springframework.boot.ApplicationRunner appHealthStartupLogger(@org.springframework.beans.factory.annotation.Qualifier("custom") HealthContributor custom) {
-        return args -> logContributorRecursive("custom", custom);
+    public ApplicationListener<ApplicationReadyEvent> appHealthStartupLogger(
+            @org.springframework.beans.factory.annotation.Qualifier("custom") HealthContributor custom,
+            AppHealthProperties props) {
+        return event -> java.util.concurrent.CompletableFuture.runAsync(() ->
+                logContributorsParallel(custom, props.getStartupTimeoutMs()));
     }
 
-    private void logContributorRecursive(String path, HealthContributor contributor) {
+    private void logContributorsParallel(HealthContributor root, int timeoutMs) {
+        List<Map.Entry<String, org.springframework.boot.actuate.health.HealthIndicator>> indicators = new ArrayList<>();
+        collectIndicators("custom", root, indicators);
+
+        int threads = Math.max(2, Math.min(Runtime.getRuntime().availableProcessors(), indicators.size()));
+        ExecutorService exec = Executors.newFixedThreadPool(threads);
+        try {
+            List<Map.Entry<String, CompletableFuture<org.springframework.boot.actuate.health.Health>>> futures = new ArrayList<>();
+            for (var e : indicators) {
+                CompletableFuture<org.springframework.boot.actuate.health.Health> f = CompletableFuture
+                        .supplyAsync(() -> e.getValue().health(), exec)
+                        .orTimeout(Math.max(1, timeoutMs), TimeUnit.MILLISECONDS)
+                        .exceptionally(ex -> org.springframework.boot.actuate.health.Health.down()
+                                .withDetail("errorKind", ex.getClass().getSimpleName())
+                                .withDetail("error", ex.getMessage())
+                                .build());
+                futures.add(Map.entry(e.getKey(), f));
+            }
+
+            Status worst = Status.UP;
+            for (var ef : futures) {
+                var h = ef.getValue().join();
+                worst = worseOf(worst, h.getStatus());
+            }
+            log.info("[AppHealth] summary status={} components={}", worst.getCode(), indicators.size());
+
+            for (var ef : futures) {
+                var h = ef.getValue().join();
+                Object ms = h.getDetails().getOrDefault("latencyMs", "");
+                log.info("[AppHealth] {} status={}{}", ef.getKey(), h.getStatus().getCode(),
+                        (ms == null || ms.toString().isEmpty()) ? "" : (" latencyMs=" + ms));
+            }
+        } finally {
+            exec.shutdown();
+        }
+    }
+
+    private void collectIndicators(String path, HealthContributor contributor,
+                                   List<Map.Entry<String, org.springframework.boot.actuate.health.HealthIndicator>> out) {
         if (contributor instanceof CompositeHealthContributor composite) {
             composite.stream().forEach(named -> {
                 String next = path.equals("custom") ? named.getName() : path + "." + named.getName();
-                logContributorRecursive(next, named.getContributor());
+                collectIndicators(next, named.getContributor(), out);
             });
         } else if (contributor instanceof org.springframework.boot.actuate.health.HealthIndicator hi) {
-            var h = hi.health();
-            Object ms = h.getDetails().getOrDefault("latencyMs", "");
-            log.info("[AppHealth] {}: {}{}", path, h.getStatus(), (ms == null || ms.toString().isEmpty()) ? "" : (" in " + ms + "ms"));
+            out.add(Map.entry(path, hi));
         }
+    }
+
+    private Status worseOf(Status a, Status b) {
+        int ra = rank(a), rb = rank(b);
+        return (rb > ra) ? b : a;
+    }
+
+    private int rank(Status s) {
+        if (Status.DOWN.equals(s)) return 4;
+        if (Status.OUT_OF_SERVICE.equals(s)) return 3;
+        if (Status.UNKNOWN.equals(s)) return 2;
+        return 1;
     }
 }

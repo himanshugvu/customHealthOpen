@@ -9,93 +9,83 @@
       "name": "app.health.db",
       "type": "com.example.health.config.AppHealthProperties$Db",
       "sourceType": "com.example.health.config.AppHealthProperties",
-      "sourceMethod": "getDb()"
+      "sourceMethod": "public com.example.health.config.AppHealthProperties.Db getDb() "
     },
     {
       "name": "app.health.endpoints",
       "type": "com.example.health.config.AppHealthProperties$Endpoints",
       "sourceType": "com.example.health.config.AppHealthProperties",
-      "sourceMethod": "getEndpoints()"
+      "sourceMethod": "public com.example.health.config.AppHealthProperties.Endpoints getEndpoints() "
     },
     {
       "name": "app.health.external",
       "type": "com.example.health.config.AppHealthProperties$External",
       "sourceType": "com.example.health.config.AppHealthProperties",
-      "sourceMethod": "getExternal()"
+      "sourceMethod": "public com.example.health.config.AppHealthProperties.External getExternal() "
     },
     {
       "name": "app.health.kafka",
       "type": "com.example.health.config.AppHealthProperties$Kafka",
       "sourceType": "com.example.health.config.AppHealthProperties",
-      "sourceMethod": "getKafka()"
+      "sourceMethod": "public com.example.health.config.AppHealthProperties.Kafka getKafka() "
     },
     {
       "name": "app.health.mongo",
       "type": "com.example.health.config.AppHealthProperties$Mongo",
       "sourceType": "com.example.health.config.AppHealthProperties",
-      "sourceMethod": "getMongo()"
+      "sourceMethod": "public com.example.health.config.AppHealthProperties.Mongo getMongo() "
     }
   ],
   "properties": [
     {
       "name": "app.health.db.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Db",
-      "defaultValue": true
+      "sourceType": "com.example.health.config.AppHealthProperties$Db"
     },
     {
       "name": "app.health.db.type",
       "type": "java.lang.String",
-      "sourceType": "com.example.health.config.AppHealthProperties$Db",
-      "defaultValue": "jdbc"
+      "sourceType": "com.example.health.config.AppHealthProperties$Db"
     },
     {
       "name": "app.health.db.validation-query",
       "type": "java.lang.String",
-      "sourceType": "com.example.health.config.AppHealthProperties$Db",
-      "defaultValue": "SELECT 1"
+      "sourceType": "com.example.health.config.AppHealthProperties$Db"
     },
     {
       "name": "app.health.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties"
     },
     {
       "name": "app.health.endpoints.allow-get-fallback",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": true
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.allow-options-fallback",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": true
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.include-actuator",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.include-error",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.max-list",
       "type": "java.lang.Integer",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": 50
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.probe-base-url",
@@ -105,8 +95,7 @@
     {
       "name": "app.health.endpoints.probe-method",
       "type": "java.lang.String",
-      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints",
-      "defaultValue": "HEAD"
+      "sourceType": "com.example.health.config.AppHealthProperties$Endpoints"
     },
     {
       "name": "app.health.endpoints.probe-paths",
@@ -131,8 +120,7 @@
     {
       "name": "app.health.kafka.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Kafka",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties$Kafka"
     },
     {
       "name": "app.health.mongo.database",
@@ -143,14 +131,17 @@
     {
       "name": "app.health.mongo.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties$Mongo",
-      "defaultValue": false
+      "sourceType": "com.example.health.config.AppHealthProperties$Mongo"
     },
     {
       "name": "app.health.startup-log",
       "type": "java.lang.Boolean",
-      "sourceType": "com.example.health.config.AppHealthProperties",
-      "defaultValue": true
+      "sourceType": "com.example.health.config.AppHealthProperties"
+    },
+    {
+      "name": "app.health.startup-timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.example.health.config.AppHealthProperties"
     }
   ],
   "hints": []

@@ -9,6 +9,7 @@ import java.util.List;
 public class AppHealthProperties {
     private boolean enabled = false;
     private boolean startupLog = true;
+    private int startupTimeoutMs = 2000; // per-indicator log timeout
     private final Db db = new Db();
     private final Mongo mongo = new Mongo();
     private final Kafka kafka = new Kafka();
@@ -20,6 +21,8 @@ public class AppHealthProperties {
 
     public boolean isStartupLog() { return startupLog; }
     public void setStartupLog(boolean startupLog) { this.startupLog = startupLog; }
+    public int getStartupTimeoutMs() { return startupTimeoutMs; }
+    public void setStartupTimeoutMs(int startupTimeoutMs) { this.startupTimeoutMs = startupTimeoutMs; }
 
     public Db getDb() { return db; }
     public Mongo getMongo() { return mongo; }
