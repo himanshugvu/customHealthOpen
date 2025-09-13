@@ -16,6 +16,15 @@ public class MongoHealthIndicator implements HealthIndicator {
         long start = System.nanoTime();
         try {
             MongoProbe.Result r = probe.probe();
+            if (r == null) {
+                long ms = (System.nanoTime() - start) / 1_000_000;
+                return Health.down()
+                        .withDetail("component", "mongo")
+                        .withDetail("type", "mongo")
+                        .withDetail("latencyMs", ms)
+                        .withDetail("error", "nullResult")
+                        .build();
+            }
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
                     .withDetail("component", "mongo")
@@ -36,4 +45,3 @@ public class MongoHealthIndicator implements HealthIndicator {
         }
     }
 }
-

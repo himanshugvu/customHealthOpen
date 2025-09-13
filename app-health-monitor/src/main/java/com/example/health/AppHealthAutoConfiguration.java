@@ -13,13 +13,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.health.CompositeHealthContributor;
 import org.springframework.boot.actuate.health.HealthContributor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -181,7 +179,11 @@ public class AppHealthAutoConfiguration {
                 }
                 components.put("endpoints", new EndpointsHealthIndicator(mapping, props.getEndpoints(), rc));
             } catch (Exception ex) {
-                log.warn("Endpoints mapping not available: {}", ex.getMessage());
+                log.atWarn()
+                        .addKeyValue("event", "endpoints_mapping_missing")
+                        .addKeyValue("errorKind", ex.getClass().getSimpleName())
+                        .addKeyValue("error", sanitize(ex.getMessage()))
+                        .log("Endpoints mapping not available");
             }
         }
 

@@ -18,6 +18,15 @@ public class DatabaseHealthIndicator implements HealthIndicator {
         long start = System.nanoTime();
         try {
             DatabaseProbe.Result r = probe.probe();
+            if (r == null) {
+                long ms = (System.nanoTime() - start) / 1_000_000;
+                return Health.down()
+                        .withDetail("component", "database")
+                        .withDetail("type", dbType)
+                        .withDetail("latencyMs", ms)
+                        .withDetail("error", "nullResult")
+                        .build();
+            }
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
                     .withDetail("component", "database")
