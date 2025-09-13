@@ -43,6 +43,12 @@
       "sourceType": "com.example.health.config.AppHealthProperties$Db"
     },
     {
+      "name": "app.health.db.probe-bean",
+      "type": "java.lang.String",
+      "description": "Optional bean name implementing com.example.health.probe.DatabaseProbe",
+      "sourceType": "com.example.health.config.AppHealthProperties$Db"
+    },
+    {
       "name": "app.health.db.type",
       "type": "java.lang.String",
       "sourceType": "com.example.health.config.AppHealthProperties$Db"
@@ -123,6 +129,12 @@
       "sourceType": "com.example.health.config.AppHealthProperties$Kafka"
     },
     {
+      "name": "app.health.kafka.probe-bean",
+      "type": "java.lang.String",
+      "description": "Optional bean name implementing com.example.health.probe.KafkaProbe",
+      "sourceType": "com.example.health.config.AppHealthProperties$Kafka"
+    },
+    {
       "name": "app.health.mongo.database",
       "type": "java.lang.String",
       "description": "Strategy: list collection names on the configured database; no ping.",
@@ -131,6 +143,12 @@
     {
       "name": "app.health.mongo.enabled",
       "type": "java.lang.Boolean",
+      "sourceType": "com.example.health.config.AppHealthProperties$Mongo"
+    },
+    {
+      "name": "app.health.mongo.probe-bean",
+      "type": "java.lang.String",
+      "description": "Optional bean name implementing com.example.health.probe.MongoProbe",
       "sourceType": "com.example.health.config.AppHealthProperties$Mongo"
     },
     {

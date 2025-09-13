@@ -1,13 +1,13 @@
 package com.example.health.indicator;
 
-import com.example.health.probe.KafkaProbe;
+import com.example.health.probe.MongoProbe;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 
-public class KafkaHealthIndicator implements HealthIndicator {
-    private final KafkaProbe probe;
+public class MongoHealthIndicator implements HealthIndicator {
+    private final MongoProbe probe;
 
-    public KafkaHealthIndicator(KafkaProbe probe) {
+    public MongoHealthIndicator(MongoProbe probe) {
         this.probe = probe;
     }
 
@@ -15,20 +15,20 @@ public class KafkaHealthIndicator implements HealthIndicator {
     public Health health() {
         long start = System.nanoTime();
         try {
-            KafkaProbe.Result r = probe.probe();
+            MongoProbe.Result r = probe.probe();
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
-                    .withDetail("component", "kafka")
-                    .withDetail("type", "kafka")
+                    .withDetail("component", "mongo")
+                    .withDetail("type", "mongo")
                     .withDetail("latencyMs", ms)
-                    .withDetail("nodeCount", r.nodeCount())
-                    .withDetail("clusterId", r.clusterId())
+                    .withDetail("database", r.databaseName())
+                    .withDetail("firstCollection", r.firstCollection())
                     .build();
         } catch (Exception e) {
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.down()
-                    .withDetail("component", "kafka")
-                    .withDetail("type", "kafka")
+                    .withDetail("component", "mongo")
+                    .withDetail("type", "mongo")
                     .withDetail("latencyMs", ms)
                     .withDetail("errorKind", e.getClass().getSimpleName())
                     .withDetail("error", e.getMessage())
@@ -36,3 +36,4 @@ public class KafkaHealthIndicator implements HealthIndicator {
         }
     }
 }
+

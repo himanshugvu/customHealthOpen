@@ -34,6 +34,8 @@ public class AppHealthProperties {
         private boolean enabled = true;
         private String validationQuery = "SELECT 1";
         private String type = "jdbc"; // e.g., postgres, mysql
+        /** Optional bean name implementing com.example.health.probe.DatabaseProbe */
+        private String probeBean;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -41,27 +43,34 @@ public class AppHealthProperties {
         public void setValidationQuery(String validationQuery) { this.validationQuery = validationQuery; }
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
+        public String getProbeBean() { return probeBean; }
+        public void setProbeBean(String probeBean) { this.probeBean = probeBean; }
     }
 
     public static class Kafka {
         private boolean enabled = false;
-        private String adminClientBean;
+        /** Optional bean name implementing com.example.health.probe.KafkaProbe */
+        private String probeBean;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public String getAdminClientBean() { return adminClientBean; }
-        public void setAdminClientBean(String adminClientBean) { this.adminClientBean = adminClientBean; }
+        public String getProbeBean() { return probeBean; }
+        public void setProbeBean(String probeBean) { this.probeBean = probeBean; }
     }
 
     public static class Mongo {
         private boolean enabled = false;
         /** Strategy: list collection names on the configured database; no ping. */
         private String database = null; // null means use default from MongoTemplate
+        /** Optional bean name implementing com.example.health.probe.MongoProbe */
+        private String probeBean;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public String getDatabase() { return database; }
         public void setDatabase(String database) { this.database = database; }
+        public String getProbeBean() { return probeBean; }
+        public void setProbeBean(String probeBean) { this.probeBean = probeBean; }
     }
 
     public static class Endpoints {

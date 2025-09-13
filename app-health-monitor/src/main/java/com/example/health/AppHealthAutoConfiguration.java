@@ -4,9 +4,9 @@ import com.example.health.config.AppHealthProperties;
 import com.example.health.indicator.DatabaseHealthIndicator;
 import com.example.health.indicator.ExternalServiceHealthIndicator;
 import com.example.health.indicator.KafkaHealthIndicator;
-import com.example.health.indicator.MongoCustomHealthIndicator;
+import com.example.health.probe.KafkaProbe;
+import com.example.health.indicator.MongoHealthIndicator;
 import com.example.health.indicator.EndpointsHealthIndicator;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -34,6 +34,10 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import com.example.health.probe.DatabaseProbe;
+import com.example.health.probe.MongoProbe;
+import com.example.health.probe.impl.DefaultDatabaseProbe;
+import com.example.health.probe.impl.DefaultMongoProbe;
 
 @AutoConfiguration
 @EnableConfigurationProperties(AppHealthProperties.class)
@@ -50,34 +54,83 @@ public class AppHealthAutoConfiguration {
             AppHealthProperties props,
             ObjectProvider<DataSource> dataSourceProvider,
             ObjectProvider<MongoTemplate> mongoTemplateProvider,
-            ObjectProvider<AdminClient> adminClientProvider,
             ObjectProvider<RestClient> restClientProvider
-    ) {
+        ) {
         Map<String, HealthContributor> components = new LinkedHashMap<>();
 
-        // DB
+        // DB via SPI probe with fallback to DataSource
         if (props.getDb().isEnabled()) {
-            DataSource ds = dataSourceProvider.getIfAvailable();
-            if (ds != null) {
-                components.put("db", (new DatabaseHealthIndicator(ds, props.getDb().getValidationQuery(), props.getDb().getType())));
-            }
-        }
-
-        // Mongo (custom strategy: listCollectionNames)
-        if (props.getMongo().isEnabled()) {
-            MongoTemplate mt = mongoTemplateProvider.getIfAvailable();
-            if (mt != null) {
-                components.put("mongo", new MongoCustomHealthIndicator(mt, props.getMongo().getDatabase()));
-            }
-        }
-
-        // Kafka
-        if (props.getKafka().isEnabled() && StringUtils.hasText(props.getKafka().getAdminClientBean())) {
             try {
-                AdminClient adminClient = (AdminClient) ctx.getBean(props.getKafka().getAdminClientBean());
-                components.put("kafka", new KafkaHealthIndicator(adminClient));
+                DatabaseProbe dbProbe;
+                if (StringUtils.hasText(props.getDb().getProbeBean())) {
+                    dbProbe = (DatabaseProbe) ctx.getBean(props.getDb().getProbeBean());
+                } else {
+                    dbProbe = getBeanSafely(ctx, DatabaseProbe.class);
+                    if (dbProbe == null) {
+                        DataSource ds = dataSourceProvider.getIfAvailable();
+                        if (ds != null) {
+                            dbProbe = new DefaultDatabaseProbe(ds, props.getDb().getValidationQuery());
+                        }
+                    }
+                }
+                if (dbProbe != null) {
+                    components.put("db", new DatabaseHealthIndicator(dbProbe, props.getDb().getType()));
+                }
             } catch (Exception e) {
-                log.warn("Kafka AdminClient bean '{}' not found: {}", props.getKafka().getAdminClientBean(), e.getMessage());
+                log.atWarn()
+                        .addKeyValue("event", "db_probe_missing")
+                        .addKeyValue("msg", "DatabaseProbe-not-available")
+                        .addKeyValue("errorKind", e.getClass().getSimpleName())
+                        .addKeyValue("error", sanitize(e.getMessage()))
+                        .log("db probe missing");
+            }
+        }
+
+        // Mongo via SPI probe with fallback to MongoTemplate
+        if (props.getMongo().isEnabled()) {
+            try {
+                MongoProbe mongoProbe;
+                if (StringUtils.hasText(props.getMongo().getProbeBean())) {
+                    mongoProbe = (MongoProbe) ctx.getBean(props.getMongo().getProbeBean());
+                } else {
+                    mongoProbe = getBeanSafely(ctx, MongoProbe.class);
+                    if (mongoProbe == null) {
+                        MongoTemplate mt = mongoTemplateProvider.getIfAvailable();
+                        if (mt != null) {
+                            mongoProbe = new DefaultMongoProbe(mt, props.getMongo().getDatabase());
+                        }
+                    }
+                }
+                if (mongoProbe != null) {
+                    components.put("mongo", new MongoHealthIndicator(mongoProbe));
+                }
+            } catch (Exception e) {
+                log.atWarn()
+                        .addKeyValue("event", "mongo_probe_missing")
+                        .addKeyValue("msg", "MongoProbe-not-available")
+                        .addKeyValue("errorKind", e.getClass().getSimpleName())
+                        .addKeyValue("error", sanitize(e.getMessage()))
+                        .log("mongo probe missing");
+            }
+        }
+
+        // Kafka via SPI probe (no hard Kafka dependency)
+        if (props.getKafka().isEnabled()) {
+            try {
+                KafkaProbe probe;
+                if (StringUtils.hasText(props.getKafka().getProbeBean())) {
+                    probe = (KafkaProbe) ctx.getBean(props.getKafka().getProbeBean());
+                } else {
+                    probe = ctx.getBean(KafkaProbe.class);
+                }
+                components.put("kafka", new KafkaHealthIndicator(probe));
+            } catch (Exception e) {
+                log.atWarn()
+                        .addKeyValue("event", "kafka_probe_missing")
+                        .addKeyValue("msg", "KafkaProbe-not-available")
+                        .addKeyValue("errorKind", e.getClass().getSimpleName())
+                        .addKeyValue("error", sanitize(e.getMessage()))
+                        .log("kafka probe missing");
             }
         }
 
@@ -92,7 +145,12 @@ public class AppHealthAutoConfiguration {
                 URI uri = convertToUri(uriBean, conversionService);
                 external.put(svc.getName(), new ExternalServiceHealthIndicator(svc.getName(), rc, uri));
             } catch (Exception e) {
-                log.warn("External service '{}' not wired: {}", svc.getName(), e.getMessage());
+                log.atWarn()
+                        .addKeyValue("event", "external_service_not_wired")
+                        .addKeyValue("name", svc.getName())
+                        .addKeyValue("errorKind", e.getClass().getSimpleName())
+                        .addKeyValue("error", sanitize(e.getMessage()))
+                        .log("external service not wired");
             }
         }
         if (!external.isEmpty()) {
@@ -130,6 +188,14 @@ public class AppHealthAutoConfiguration {
         throw new IllegalArgumentException("Unsupported URL bean type: " + bean.getClass());
     }
 
+    private <T> T getBeanSafely(ApplicationContext ctx, Class<T> type) {
+        try {
+            return ctx.getBean(type);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     @Bean
     @ConditionalOnProperty(prefix = "app.health", name = "startupLog", havingValue = "true", matchIfMissing = true)
     public ApplicationListener<ApplicationReadyEvent> appHealthStartupLogger(
@@ -163,13 +229,23 @@ public class AppHealthAutoConfiguration {
                 var h = ef.getValue().join();
                 worst = worseOf(worst, h.getStatus());
             }
-            log.info("[AppHealth] summary status={} components={}", worst.getCode(), indicators.size());
+            log.atInfo()
+                    .addKeyValue("event", "app_health_summary")
+                    .addKeyValue("status", worst.getCode())
+                    .addKeyValue("components", indicators.size())
+                    .log("app health summary");
 
             for (var ef : futures) {
                 var h = ef.getValue().join();
                 Object ms = h.getDetails().getOrDefault("latencyMs", "");
-                log.info("[AppHealth] {} status={}{}", ef.getKey(), h.getStatus().getCode(),
-                        (ms == null || ms.toString().isEmpty()) ? "" : (" latencyMs=" + ms));
+                var builder = log.atInfo()
+                        .addKeyValue("event", "app_health_component")
+                        .addKeyValue("path", ef.getKey())
+                        .addKeyValue("status", h.getStatus().getCode());
+                if (ms != null && !ms.toString().isEmpty()) {
+                    builder.addKeyValue("latencyMs", ms);
+                }
+                builder.log("app health component");
             }
         } finally {
             exec.shutdown();
@@ -198,5 +274,10 @@ public class AppHealthAutoConfiguration {
         if (Status.OUT_OF_SERVICE.equals(s)) return 3;
         if (Status.UNKNOWN.equals(s)) return 2;
         return 1;
+    }
+
+    private String sanitize(String msg) {
+        if (msg == null) return "";
+        return msg.replaceAll("\\s+", "_");
     }
 }

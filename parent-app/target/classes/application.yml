@@ -8,6 +8,11 @@ spring:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/demo}
 
+logging:
+  structured:
+    format:
+      console: logfmt
+
 management:
   endpoints:
     web:
@@ -34,7 +39,6 @@ app:
       enabled: true
     kafka:
       enabled: true
-      adminClientBean: kafkaAdminClient
     external:
       services:
         - name: httpbin
