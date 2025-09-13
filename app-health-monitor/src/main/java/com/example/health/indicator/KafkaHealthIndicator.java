@@ -16,6 +16,15 @@ public class KafkaHealthIndicator implements HealthIndicator {
         long start = System.nanoTime();
         try {
             KafkaProbe.Result r = probe.probe();
+            if (r == null) {
+                long ms = (System.nanoTime() - start) / 1_000_000;
+                return Health.down()
+                        .withDetail("component", "kafka")
+                        .withDetail("type", "kafka")
+                        .withDetail("latencyMs", ms)
+                        .withDetail("error", "nullResult")
+                        .build();
+            }
             long ms = (System.nanoTime() - start) / 1_000_000;
             return Health.up()
                     .withDetail("component", "kafka")
