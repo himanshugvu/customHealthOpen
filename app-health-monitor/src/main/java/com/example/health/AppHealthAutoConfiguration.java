@@ -33,11 +33,10 @@ import javax.sql.DataSource;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import com.example.health.probe.DatabaseProbe;
 import com.example.health.probe.MongoProbe;
 import com.example.health.probe.impl.DefaultDatabaseProbe;
-import com.example.health.probe.impl.DefaultMongoProbe;
+import com.example.health.probe.impl.ReflectiveMongoProbe;
 
 @AutoConfiguration
 @EnableConfigurationProperties(AppHealthProperties.class)
@@ -53,13 +52,16 @@ public class AppHealthAutoConfiguration {
             ConversionService conversionService,
             AppHealthProperties props,
             ObjectProvider<DataSource> dataSourceProvider,
-            ObjectProvider<MongoTemplate> mongoTemplateProvider,
             ObjectProvider<RestClient> restClientProvider
         ) {
         Map<String, HealthContributor> components = new LinkedHashMap<>();
 
-        // DB via SPI probe with fallback to DataSource
+        // DB: prefer Actuator's built-in contributor if present; else SPI/DataSource fallback
         if (props.getDb().isEnabled()) {
+            HealthContributor existingDb = getHealthContributor(ctx, "db");
+            if (existingDb != null) {
+                components.put("db", com.example.health.indicator.LatencyDecorators.withLatency(existingDb));
+            } else {
             try {
                 DatabaseProbe dbProbe;
                 if (StringUtils.hasText(props.getDb().getProbeBean())) {
@@ -84,10 +86,15 @@ public class AppHealthAutoConfiguration {
                         .addKeyValue("error", sanitize(e.getMessage()))
                         .log("db probe missing");
             }
+            }
         }
 
-        // Mongo via SPI probe with fallback to MongoTemplate
+        // Mongo: prefer Actuator's built-in contributor if present; else SPI/reflective fallback
         if (props.getMongo().isEnabled()) {
+            HealthContributor existingMongo = getHealthContributor(ctx, "mongo");
+            if (existingMongo != null) {
+                components.put("mongo", com.example.health.indicator.LatencyDecorators.withLatency(existingMongo));
+            } else {
             try {
                 MongoProbe mongoProbe;
                 if (StringUtils.hasText(props.getMongo().getProbeBean())) {
@@ -95,9 +102,14 @@ public class AppHealthAutoConfiguration {
                 } else {
                     mongoProbe = getBeanSafely(ctx, MongoProbe.class);
                     if (mongoProbe == null) {
-                        MongoTemplate mt = mongoTemplateProvider.getIfAvailable();
+                        Object mt = getBeanByClassName(ctx, "org.springframework.data.mongodb.core.MongoTemplate");
                         if (mt != null) {
-                            mongoProbe = new DefaultMongoProbe(mt, props.getMongo().getDatabase());
+                            mongoProbe = ReflectiveMongoProbe.fromMongoTemplate(mt, props.getMongo().getDatabase());
+                        } else {
+                            Object mc = getBeanByClassName(ctx, "com.mongodb.client.MongoClient");
+                            if (mc != null) {
+                                mongoProbe = ReflectiveMongoProbe.fromMongoClient(mc, props.getMongo().getDatabase());
+                            }
                         }
                     }
                 }
@@ -111,6 +123,7 @@ public class AppHealthAutoConfiguration {
                         .addKeyValue("errorKind", e.getClass().getSimpleName())
                         .addKeyValue("error", sanitize(e.getMessage()))
                         .log("mongo probe missing");
+            }
             }
         }
 
@@ -191,6 +204,23 @@ public class AppHealthAutoConfiguration {
     private <T> T getBeanSafely(ApplicationContext ctx, Class<T> type) {
         try {
             return ctx.getBean(type);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private HealthContributor getHealthContributor(ApplicationContext ctx, String name) {
+        try {
+            return ctx.getBean(name, HealthContributor.class);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Object getBeanByClassName(ApplicationContext ctx, String className) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            return ctx.getBean(clazz);
         } catch (Exception ex) {
             return null;
         }
